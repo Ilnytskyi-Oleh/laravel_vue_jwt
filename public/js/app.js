@@ -5262,6 +5262,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
+/* harmony import */ var _api__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../api */ "./resources/js/api.js");
 //
 //
 //
@@ -5272,9 +5273,103 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
+//
+
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
-  name: "Index"
+  name: "Index",
+  data: function data() {
+    return {
+      accessToken: ''
+    };
+  },
+  mounted: function mounted() {
+    this.getAccessToken();
+  },
+  updated: function updated() {
+    this.getAccessToken();
+  },
+  methods: {
+    getAccessToken: function getAccessToken() {
+      this.accessToken = localStorage.getItem('access_token');
+    },
+    logout: function logout() {
+      var _this = this;
+
+      _api__WEBPACK_IMPORTED_MODULE_0__["default"].post('/api/auth/logout', {}).then(function (res) {
+        localStorage.removeItem('access_token');
+
+        _this.$router.push({
+          name: 'user.login'
+        });
+      });
+    }
+  }
 });
+
+/***/ }),
+
+/***/ "./resources/js/api.js":
+/*!*****************************!*\
+  !*** ./resources/js/api.js ***!
+  \*****************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! axios */ "./node_modules/axios/index.js");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _router__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./router */ "./resources/js/router.js");
+
+
+var api = axios__WEBPACK_IMPORTED_MODULE_0___default().create(); //начало запроса
+
+api.interceptors.request.use(function (config) {
+  if (localStorage.getItem('access_token')) {
+    config.headers.authorization = "Bearer ".concat(localStorage.getItem('access_token'));
+  }
+
+  return config;
+}, function (error) {
+  if (error.response.status === 401) {
+    _router__WEBPACK_IMPORTED_MODULE_1__["default"].push({
+      name: 'user.login'
+    });
+  }
+
+  return error;
+}); //конец запроса
+
+api.interceptors.response.use(function (config) {
+  if (localStorage.getItem('access_token')) {
+    config.headers.authorization = "Bearer ".concat(localStorage.getItem('access_token'));
+  }
+
+  return config;
+}, function (error) {
+  if ('Token has expired' === error.response.data.message) {
+    return axios__WEBPACK_IMPORTED_MODULE_0___default().post('api/auth/refresh', {}, {
+      headers: {
+        'authorization': "Bearer ".concat(localStorage.getItem('access_token'))
+      }
+    }).then(function (res) {
+      localStorage.setItem('access_token', res.data.access_token);
+      error.config.headers.authorization = "Bearer ".concat(res.data.access_token);
+      return api.request(error.config);
+    });
+  }
+
+  if (error.response.status === 401) {
+    _router__WEBPACK_IMPORTED_MODULE_1__["default"].push({
+      name: 'user.login'
+    });
+  }
+
+  return error;
+});
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (api);
 
 /***/ }),
 
@@ -5357,7 +5452,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 vue__WEBPACK_IMPORTED_MODULE_0__["default"].use(vue_router__WEBPACK_IMPORTED_MODULE_1__["default"]);
-/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (new vue_router__WEBPACK_IMPORTED_MODULE_1__["default"]({
+var router = new vue_router__WEBPACK_IMPORTED_MODULE_1__["default"]({
   mode: 'history',
   routes: [{
     path: '/fruit',
@@ -5383,8 +5478,36 @@ vue__WEBPACK_IMPORTED_MODULE_0__["default"].use(vue_router__WEBPACK_IMPORTED_MOD
       return __webpack_require__.e(/*! import() */ "resources_js_components_User_Personal_vue").then(__webpack_require__.bind(__webpack_require__, /*! ./components/User/Personal */ "./resources/js/components/User/Personal.vue"));
     },
     name: 'user.personal'
+  }, {
+    path: '*',
+    component: function component() {
+      return __webpack_require__.e(/*! import() */ "resources_js_components_User_Personal_vue").then(__webpack_require__.bind(__webpack_require__, /*! ./components/User/Personal */ "./resources/js/components/User/Personal.vue"));
+    },
+    name: '404'
   }]
-}));
+});
+router.beforeEach(function (to, from, next) {
+  var accessToken = localStorage.getItem('access_token');
+
+  if (!accessToken) {
+    if (to.name === 'user.registration' || to.name === 'user.login') {
+      return next();
+    } else {
+      return next({
+        name: 'user.login'
+      });
+    }
+  }
+
+  if (to.name == 'user.login' || to.name == 'user.registration' && accessToken) {
+    return next({
+      name: 'user.personal'
+    });
+  }
+
+  next();
+});
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (router);
 
 /***/ }),
 
@@ -27926,21 +28049,45 @@ var render = function () {
     "div",
     { staticClass: "p-5" },
     [
-      _c("router-link", { attrs: { to: { name: "fruit.index" } } }, [
-        _vm._v("Fruit"),
-      ]),
+      _vm.accessToken
+        ? _c("router-link", { attrs: { to: { name: "fruit.index" } } }, [
+            _vm._v("Fruit"),
+          ])
+        : _vm._e(),
       _vm._v(" "),
-      _c("router-link", { attrs: { to: { name: "user.login" } } }, [
-        _vm._v("Login"),
-      ]),
+      !_vm.accessToken
+        ? _c("router-link", { attrs: { to: { name: "user.login" } } }, [
+            _vm._v("Login"),
+          ])
+        : _vm._e(),
       _vm._v(" "),
-      _c("router-link", { attrs: { to: { name: "user.registration" } } }, [
-        _vm._v("Registration"),
-      ]),
+      !_vm.accessToken
+        ? _c("router-link", { attrs: { to: { name: "user.registration" } } }, [
+            _vm._v("Registration"),
+          ])
+        : _vm._e(),
       _vm._v(" "),
-      _c("router-link", { attrs: { to: { name: "user.personal" } } }, [
-        _vm._v("Personal"),
-      ]),
+      _vm.accessToken
+        ? _c("router-link", { attrs: { to: { name: "user.personal" } } }, [
+            _vm._v("Personal"),
+          ])
+        : _vm._e(),
+      _vm._v(" "),
+      _vm.accessToken
+        ? _c(
+            "a",
+            {
+              attrs: { href: "#" },
+              on: {
+                click: function ($event) {
+                  $event.preventDefault()
+                  return _vm.logout.apply(null, arguments)
+                },
+              },
+            },
+            [_vm._v("LogOut")]
+          )
+        : _vm._e(),
       _vm._v(" "),
       _c("router-view"),
     ],

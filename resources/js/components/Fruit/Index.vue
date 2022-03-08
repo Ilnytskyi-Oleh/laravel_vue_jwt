@@ -36,14 +36,12 @@ export default {
     methods:{
         getFruits(){
             api.get('/api/auth/fruits')
-                .then(res=>{
-                this.fruits = res.data.data
-            })
-            .catch(error =>{
+                .then(res => {
+                    this.fruits = res.data.data
+            }).catch(error =>{
                 console.log(error)
             })
         },
-
     }
 }
 </script>
